@@ -1,0 +1,21 @@
+.env
+*.db
+*.db-wal
+*.db-shm
+backups/
+__pycache__/
+*.pyc
+
+# Logs and process files
+*.log
+*.pid
+
+# Backups and old versions
+*.backup
+*.backup*
+*.before*
+backups/
+
+# Local patch scripts
+patch_godfather.py
+update_all.py

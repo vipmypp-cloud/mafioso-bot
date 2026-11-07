@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mafioso</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;min-height:100vh;background:#08070d;
+ background-image:linear-gradient(#08070dcc,#08070dcc),url('/static/background.png');
+ background-size:cover;background-position:center;
+ color:white;font-family:sans-serif;text-align:center
+}
+.container{max-width:430px;margin:auto;padding:20px 17px}
+h1{color:#e8bd65;letter-spacing:4px;margin:12px 0 4px}
+.subtitle{color:#aaa;font-size:12px}
+.balance,.box,.profile{
+ background:#21172b;border:1px solid #8c6939;
+ border-radius:17px;padding:15px;margin-top:17px
+}
+.balance h2{color:#f3ca70;font-size:27px;margin:8px}
+.coin{
+ width:220px;height:220px;margin:25px auto;
+ display:flex;align-items:center;justify-content:center;
+ border:0;background:transparent;cursor:pointer;
+ -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+ user-select:none
+}
+.coin img{
+ width:100%;height:100%;object-fit:contain;
+ filter:drop-shadow(0 0 18px #d9a43b99);
+ pointer-events:none
+}
+.coin:active{transform:scale(.93)}
+.info{display:flex;gap:10px}
+.box{flex:1;margin-top:0;padding:12px 5px}
+.box h3{color:#f1c66d;margin:8px 0 0}
+button{
+ width:100%;padding:14px;margin-top:14px;
+ border:0;border-radius:12px;
+ background:linear-gradient(90deg,#a8782d,#e7c16d);
+ color:#17100a;font-size:16px;font-weight:bold;
+ cursor:pointer
+}
+button:disabled{opacity:.55}
+.secondary{background:#30223d;color:white;border:1px solid #8c6939}
+.profile{display:none;text-align:right;line-height:2}
+.profile strong{color:#e8bd65}
+.footer{color:#777;font-size:11px;margin:25px 0}
+
+.coin {
+ width:220px !important;
+ height:220px !important;
+ min-height:220px;
+ padding:0 !important;
+ margin:25px auto !important;
+ background:transparent !important;
+ border:0 !important;
+ box-shadow:none !important;
+}
+.coin img {
+ display:block;
+ width:100%;
+ height:100%;
+ object-fit:contain;
+}
+</style>
+</head>
+<body>
+<div class="container">
+ <h1>MAFIOSO</h1>
+ <div class="subtitle">WELCOME TO THE FAMILY</div>
+
+ <div class="balance">
+  <div>موجودی شما</div>
+  <h2>🪙 <span id="balance">0</span></h2>
+  <small>Mafia Coin</small>
+ </div>
+
+ <button class="coin" id="coin" aria-label="کلیک برای دریافت سکه">
+  <img src="/static/coin.png?v=2" alt="Mafia Coin"
+       onerror="this.style.display='none';this.parentElement.innerHTML='🪙';this.parentElement.style.fontSize='150px'">
+ </button>
+
+ <div class="info">
+  <div class="box">⚡ انرژی<h3 id="energy">1000</h3></div>
+  <div class="box">👆 قدرت کلیک<h3 id="power">1</h3></div>
+ </div>
+
+ <button id="upgrade">🚀 ارتقای قدرت</button>
+ <div class="subtitle" id="cost">هزینه ارتقا: ۱۰۰ سکه</div>
+
+ <button class="secondary" id="profileButton">👤 پروفایل من</button>
+
+ <div class="profile" id="profile">
+  <div>شناسه: <strong id="userId">-</strong></div>
+  <div>نام کاربری: <strong id="username">-</strong></div>
+  <div>موجودی: <strong id="profileBalance">0</strong> Mafia Coin</div>
+  <div>قدرت کلیک: <strong id="profilePower">1</strong></div>
+  <div>انرژی: <strong id="profileEnergy">1000</strong></div>
+ </div>
+
+ <div class="footer">MAFIOSO CLICKER © 2026</div>
+</div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+const tg=window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand();}
+
+const initData=tg?.initData||"";
+const $=id=>document.getElementById(id);
+
+let balance=0,energy=1000,power=1,upgradeCost=100;
+let pending=0,sending=false;
+
+function show(data){
+ if(data.balance!==undefined)balance=data.balance;
+ if(data.energy!==undefined)energy=data.energy;
+ if(data.power!==undefined)power=data.power;
+ if(data.upgrade_cost!==undefined)upgradeCost=data.upgrade_cost;
+
+ $("balance").textContent=balance;
+ $("energy").textContent=energy;
+ $("power").textContent=power;
+ $("cost").textContent="هزینه ارتقا: "+upgradeCost+" سکه";
+ $("profileBalance").textContent=balance;
+ $("profilePower").textContent=power;
+ $("profileEnergy").textContent=energy;
+}
+
+async function api(path,body){
+ const response=await fetch(path,{
+  method:body?"POST":"GET",
+  headers:{
+   "Authorization":"tma "+initData,
+   ...(body?{"Content-Type":"application/json"}:{})
+  },
+  body:body?JSON.stringify(body):undefined
+ });
+ const data=await response.json();
+ if(!response.ok)throw new Error(data.error||"خطا در ارتباط با سرور");
+ return data;
+}
+
+async function load(){
+ if(!initData){alert("بازی را از داخل ربات تلگرام باز کن.");return;}
+ try{
+  const data=await api("/api/state");
+  show(data);
+  $("userId").textContent=data.user_id;
+  $("username").textContent=data.username?"@"+data.username:"بدون نام کاربری";
+ }catch(e){alert(e.message);}
+}
+
+async function flush(){
+ if(sending||pending===0)return;
+ sending=true;
+ const count=Math.min(pending,20);
+ pending-=count;
+ try{
+  const data=await api("/api/tap",{count});
+  show(data);
+ }catch(e){
+  pending=0;
+  if(e.message==="Banned")alert("حساب شما مسدود شده است.");
+  else if(e.message==="Not enough energy")alert("انرژی شما تمام شده است!");
+  else console.error(e);
+ }finally{
+  sending=false;
+  if(pending>0)flush();
+ }
+}
+
+$("coin").addEventListener("click",()=>{
+ if(!initData){alert("بازی را از داخل ربات باز کن.");return;}
+ if(energy<=0&&pending===0){return;}
+ if(pending>=20){flush();return;}
+ pending++;
+ if(pending>=20)flush();
+});
+
+setInterval(flush,180);
+
+$("upgrade").addEventListener("click",async()=>{
+ $("upgrade").disabled=true;
+ try{
+  const data=await api("/api/upgrade",{});
+  show(data);
+  tg?.HapticFeedback?.notificationOccurred("success");
+ }catch(e){
+  if(e.message==="Not enough coins")alert("سکه کافی برای ارتقا نداری!");
+  else alert(e.message);
+ }finally{
+  $("upgrade").disabled=false;
+ }
+});
+
+$("profileButton").addEventListener("click",()=>{
+ const panel=$("profile");
+ panel.style.display=panel.style.display==="block"?"none":"block";
+});
+
+load();
+</script>
+</body>
+</html>
